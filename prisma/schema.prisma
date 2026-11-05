@@ -5,9 +5,6 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// Note that some adapters may set a maximum length for the String type by default, please ensure your strings are long
-// enough when changing adapters.
-// See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
 datasource db {
   provider = "sqlite"
   url      = "file:dev.sqlite"
@@ -195,4 +192,92 @@ model Video {
 
   @@unique([shop, videoId])
   @@index([shop, createdAt])
+}
+
+// ========== Tracking Intelligence Models ==========
+
+model Integration {
+  id          String   @id @default(cuid())
+  shop        String
+  platform    String
+  status      String   @default("disconnected")
+  accountId   String?
+  accountName String?
+  accessToken String?
+  refreshToken String?
+  expiresAt   DateTime?
+  scopes      String?
+  metadata    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([shop, platform])
+  @@index([shop])
+}
+
+model ShopifyOrder {
+  id              String   @id @default(cuid())
+  shop            String
+  orderId         String
+  orderNumber     String?
+  transactionId   String?
+  totalPrice      Float
+  subtotalPrice   Float?
+  totalTax        Float?
+  totalShipping   Float?
+  currency        String
+  financialStatus String?
+  fulfillmentStatus String?
+  createdAt       DateTime
+  updatedAt       DateTime @updatedAt
+  raw             String?
+
+  @@unique([shop, orderId])
+  @@index([shop, createdAt])
+}
+
+model TrackingEvent {
+  id            String   @id @default(cuid())
+  shop          String
+  orderId       String?
+  eventName     String
+  destination   String
+  transactionId String?
+  value         Float?
+  currency      String?
+  parameters    String?
+  status        String   @default("received")
+  timestamp     DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  @@index([shop, orderId])
+  @@index([shop, eventName, timestamp])
+}
+
+model TrackingHealth {
+  id          String   @id @default(cuid())
+  shop        String
+  score       Int      @default(0)
+  categories  String?
+  lastChecked DateTime @default(now())
+  issues      String?
+  updatedAt   DateTime @updatedAt
+
+  @@unique([shop])
+}
+
+model AuditIssue {
+  id          String   @id @default(cuid())
+  shop        String
+  severity    String
+  category    String
+  title       String
+  description String
+  status      String   @default("open")
+  firstSeen   DateTime @default(now())
+  resolvedAt  DateTime?
+  metadata    String?
+  createdAt   DateTime @default(now())
+
+  @@index([shop, status])
 }

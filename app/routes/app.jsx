@@ -14,13 +14,22 @@ export default function App() {
   return (
     <AppProvider embedded apiKey={apiKey}>
       <s-app-nav>
-        <s-link href="/app">Image manager</s-link>
-        <s-link href="/app/seo">SEO workspace</s-link>
-        <s-link href="/app/automation">Automation</s-link>
-        <s-link href="/app/optimize">Image optimizer</s-link>
-        <s-link href="/app/technical">Technical SEO</s-link>
-        <s-link href="/app/tracking">Tracking Intelligence</s-link>
-        <s-link href="/app/settings">AI settings</s-link>
+		<s-link href="/app">Image manager</s-link>
+		<s-link href="/app/seo">SEO workspace</s-link>
+		<s-link href="/app/automation">Automation</s-link>
+		<s-link href="/app/optimize">Image optimizer</s-link>
+		<s-link href="/app/technical">Technical SEO</s-link>
+		<s-link href="/app/tracking">Tracking Intelligence</s-link>
+		<s-link href="/app/settings">AI settings</s-link>
+		<s-link href="/app/tracking/ga4">GA4 Events</s-link>
+		<s-link href="/app/tracking/ads">Ads Conversions</s-link>
+		<s-link href="/app/tracking/duplicates">Duplicates</s-link>
+		<s-link href="/app/tracking/gtm">GTM Inspector</s-link>
+		<s-link href="/app/tracking/linker">Conversion Linker</s-link>
+		<s-link href="/app/tracking/enhanced">Enhanced Conversions</s-link>
+		<s-link href="/app/tracking/reconciliation">Revenue Reconciliation</s-link>
+		<s-link href="/app/tracking/transaction-ids">Transaction IDs</s-link>
+		<s-link href="/app/tracking/test-lab">Test Lab</s-link>
       </s-app-nav>
       <Outlet />
     </AppProvider>

@@ -2,6 +2,7 @@ import { redirect } from "react-router";
 import {
   GOOGLE_PLATFORMS,
   exchangeGoogleCode,
+  getGoogleCredentials,
   getIntegrationsAdminUrl,
   saveGoogleIntegration,
   verifyGoogleState,
@@ -19,7 +20,7 @@ export const loader = async ({ request }) => {
   if (!code) return redirect(getIntegrationsAdminUrl(shop, "denied"));
 
   try {
-    const tokens = await exchangeGoogleCode(code);
+    const tokens = await exchangeGoogleCode(code, await getGoogleCredentials(shop));
     await saveGoogleIntegration({ shop, platform: GOOGLE_PLATFORMS[platform], tokens });
     return redirect(getIntegrationsAdminUrl(shop, "connected"));
   } catch (error) {

@@ -3,12 +3,15 @@ import { boundary } from "@shopify/shopify-app-react-router/server";
 import { authenticate } from "../shopify.server";
 import { GoogleConnections } from "../components/GoogleConnections";
 import { getTrackingDashboard } from "../services/tracking.server";
-import { isGoogleConfigured } from "../services/google-oauth.server";
+import { getGoogleCredentialStatus } from "../services/google-oauth.server";
 
 export const loader = async ({ request }) => {
   const { session } = await authenticate.admin(request);
-  const data = await getTrackingDashboard(session.shop);
-  return { ...data, googleConfigured: isGoogleConfigured() };
+  const [data, credentials] = await Promise.all([
+    getTrackingDashboard(session.shop),
+    getGoogleCredentialStatus(session.shop),
+  ]);
+  return { ...data, googleConfigured: credentials.configured };
 };
 
 export default function TrackingDashboard() {

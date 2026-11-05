@@ -11,6 +11,12 @@ export const action = async ({ request }) => {
   await db.$transaction([
     db.aiConnection.deleteMany({ where: { shop } }),
     db.integration.deleteMany({ where: { shop } }),
+    db.googleCredential.deleteMany({ where: { shop } }),
+    db.shopifyOrder.deleteMany({ where: { shop } }),
+    db.trackingEvent.deleteMany({ where: { shop } }),
+    db.trackingHealth.deleteMany({ where: { shop } }),
+    db.auditIssue.deleteMany({ where: { shop } }),
+    db.video.deleteMany({ where: { shop } }),
     db.integrationReport.deleteMany({ where: { shop } }),
     db.workJob.deleteMany({ where: { shop } }),
     db.siteScan.deleteMany({ where: { shop } }),

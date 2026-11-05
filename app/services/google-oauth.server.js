@@ -1,6 +1,6 @@
 import { createHmac, hkdfSync, randomBytes, timingSafeEqual } from "node:crypto";
 import prisma from "../db.server.js";
-import { encryptKey } from "./ai-settings.server.js";
+import { decryptKey, encryptKey } from "./ai-settings.server.js";
 
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -28,8 +28,51 @@ export function isGooglePlatform(platform) {
   return Object.hasOwn(GOOGLE_PLATFORMS, platform);
 }
 
-export function isGoogleConfigured() {
-  return Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+// A Google Cloud "Web application" OAuth client ID, as shown in the merchant's own project.
+const GOOGLE_CLIENT_ID_PATTERN = /^[a-zA-Z0-9-]{1,200}\.apps\.googleusercontent\.com$/;
+
+// Never returns the secret, so this is safe to send to the browser.
+export async function getGoogleCredentialStatus(shop, db = prisma) {
+  const record = await db.googleCredential.findUnique({ where: { shop } });
+  if (!record) return { configured: false, clientId: "" };
+  try {
+    return { configured: Boolean(decryptKey(record.encryptedSecret, shop)), clientId: record.clientId };
+  } catch {
+    return { configured: false, clientId: record.clientId };
+  }
+}
+
+export async function getGoogleCredentials(shop, db = prisma) {
+  const record = await db.googleCredential.findUnique({ where: { shop } });
+  if (!record) throw new Error("This store has no Google credentials saved.");
+  return { clientId: record.clientId, clientSecret: decryptKey(record.encryptedSecret, shop) };
+}
+
+export async function saveGoogleCredentials({ shop, clientId, clientSecret }, db = prisma) {
+  const id = String(clientId || "").trim();
+  const secret = String(clientSecret || "").trim();
+  if (!GOOGLE_CLIENT_ID_PATTERN.test(id)) return { error: "Enter a valid client ID. It ends in .apps.googleusercontent.com." };
+  if (secret && (secret.length < 8 || secret.length > 512 || /\s|[^\x21-\x7e]/.test(secret))) return { error: "Enter a valid client secret without spaces." };
+
+  const existing = await db.googleCredential.findUnique({ where: { shop } });
+  const clientChanged = existing?.clientId !== id;
+  if (!secret && clientChanged) return { error: "Enter the client secret for this client ID." };
+  const encryptedSecret = secret ? encryptKey(secret, shop) : existing.encryptedSecret;
+
+  // Google tokens only work with the client that issued them, so a new client needs fresh connections.
+  await db.$transaction(async (tx) => {
+    await tx.googleCredential.upsert({ where: { shop }, create: { shop, clientId: id, encryptedSecret }, update: { clientId: id, encryptedSecret } });
+    if (existing && clientChanged) await tx.integration.deleteMany({ where: { shop, platform: { in: Object.values(GOOGLE_PLATFORMS) } } });
+  });
+  return { message: existing && clientChanged ? "Credentials saved. Connect your Google services again to use the new client." : "Google credentials saved." };
+}
+
+export async function removeGoogleCredentials(shop, db = prisma) {
+  await db.$transaction(async (tx) => {
+    await tx.googleCredential.deleteMany({ where: { shop } });
+    await tx.integration.deleteMany({ where: { shop, platform: { in: Object.values(GOOGLE_PLATFORMS) } } });
+  });
+  return { message: "Google credentials removed and services disconnected." };
 }
 
 export function getGoogleRedirectUri() {
@@ -66,10 +109,9 @@ export function verifyGoogleState(state, now = Date.now()) {
   }
 }
 
-export function getGoogleAuthUrl(platform, shop) {
+export function getGoogleAuthUrl(platform, shop, clientId) {
   if (!isGooglePlatform(platform)) throw new Error("Unknown Google platform");
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  if (!clientId) throw new Error("GOOGLE_CLIENT_ID is not set");
+  if (!clientId) throw new Error("A Google client ID is required");
 
   const params = new URLSearchParams({
     client_id: clientId,
@@ -90,11 +132,7 @@ export function getIntegrationsAdminUrl(shop, result) {
   return `https://admin.shopify.com/store/${store}/apps/${process.env.SHOPIFY_API_KEY}/app/tracking/integrations?google=${result}`;
 }
 
-export async function exchangeGoogleCode(code) {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  if (!clientId || !clientSecret) throw new Error("Google OAuth credentials missing");
-
+export async function exchangeGoogleCode(code, { clientId, clientSecret }) {
   const body = new URLSearchParams({
     code,
     client_id: clientId,

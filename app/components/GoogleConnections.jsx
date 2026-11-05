@@ -18,9 +18,10 @@ export function GoogleConnections({ connected, configured }) {
   return (
     <s-stack direction="block" gap="base">
       {!configured && (
-        <s-banner tone="warning" heading="Google connections are not available yet">
+        <s-banner tone="warning" heading="Add your Google credentials first">
           <s-paragraph>
-            The app administrator needs to add the Google client ID and client secret before accounts can be connected.
+            Save the Google client ID and client secret for this store on the{" "}
+            <s-link href="/app/tracking/integrations">Integrations page</s-link> to connect these services.
           </s-paragraph>
         </s-banner>
       )}

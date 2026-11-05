@@ -215,6 +215,14 @@ model Integration {
   @@index([shop])
 }
 
+// Each store brings its own Google Cloud OAuth client.
+model GoogleCredential {
+  shop            String   @id
+  clientId        String
+  encryptedSecret String
+  updatedAt       DateTime @updatedAt
+}
+
 model ShopifyOrder {
   id              String   @id @default(cuid())
   shop            String

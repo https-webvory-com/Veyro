@@ -1,0 +1,78 @@
+name: Test and deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: postgresql://unused:unused@localhost:5432/unused
+      SHOPIFY_API_KEY: ci-key
+      SHOPIFY_API_SECRET: ci-secret
+      SHOPIFY_APP_URL: https://ci.example
+      SCOPES: read_products
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - run: node --test tests/*.test.js
+      - run: npm run build
+
+  deploy:
+    needs: test
+    # Turned on by setting the repository variable DEPLOY_ENABLED to "true" once the secrets exist.
+    if: >-
+      github.event_name != 'pull_request' &&
+      github.ref == 'refs/heads/main' &&
+      vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: production-deploy
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+      - name: Deploy to the server
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          PM2_APPS: ${{ vars.PM2_APPS || 'veyro veyro-worker' }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" bash -s -- "'$DEPLOY_PATH'" "'$GITHUB_SHA'" $PM2_APPS < scripts/deploy.sh
+      - name: Check the live site
+        env:
+          SITE_URL: ${{ vars.SITE_URL || 'https://veyro.webvory.com' }}
+        run: |
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            if curl -fsS -o /dev/null -m 10 "$SITE_URL/auth/login"; then
+              echo "Site is responding."
+              exit 0
+            fi
+            sleep 6
+          done
+          echo "::error::$SITE_URL did not respond after the deploy."
+          exit 1

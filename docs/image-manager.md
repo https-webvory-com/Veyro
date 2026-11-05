@@ -19,7 +19,7 @@ The `/app` screen now loads the latest 20 Shopify products and each product's fi
 
 ## Current boundaries
 
-- SQLite and request-time processing are retained from the starter. There is no Redis worker, webhook automation, bulk catalog pagination, auto-approval, variant assignment, billing, or production deployment in this slice.
+- Request-time processing is retained from the starter. There is no Redis worker, webhook automation, bulk catalog pagination, auto-approval, variant assignment, billing, or production deployment in this slice.
 - Confidence is an AI estimate, not calibrated accuracy. The saved threshold flags suggestions for closer review; it never authorizes automatic writes.
 - The dashboard shows the most recent 100 reviews. Analysis skips media with an existing review, including dismissed reviews. Reprocessing and a complete history browser are future work.
 - Shopify errors and AI failures surface in the interface. Requests to AI time out after 45 seconds. Shopify ALT is checked before writing to avoid knowingly overwriting later merchant changes; Shopify does not provide an atomic compare-and-set for this mutation, so a simultaneous external edit remains possible.

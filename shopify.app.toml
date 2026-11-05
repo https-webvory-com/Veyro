@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "6aeced03985ecfd44ec924ebb5c491bd"
-application_url = "https://example.com"
+application_url = "https://veyro.webvory.com"
 embedded = true
 name = "Veyro"
 
@@ -49,9 +49,11 @@ api_version = "2026-07"
   uri = "/webhooks/products"
   topics = [ "products/create", "products/update" ]
 
-  [[webhooks.subscriptions]]
-  uri = "/webhooks/orders"
-  topics = [ "orders/create", "orders/updated", "orders/paid" ]
+  # Order webhooks require protected customer data approval.
+  # Uncomment after you request and receive access in the Partner Dashboard.
+  # [[webhooks.subscriptions]]
+  # uri = "/webhooks/orders"
+  # topics = [ "orders/create", "orders/updated", "orders/paid" ]
 
 [auth]
 redirect_urls = [ ]

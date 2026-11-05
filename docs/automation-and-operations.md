@@ -13,7 +13,7 @@
 ## Start locally
 
 1. Use Node 22.12 or newer within the package's supported engine range. Run `npm.cmd install` and `npm.cmd run setup`.
-2. Put the Shopify API key, secret, and app URL in the server environment or ignored `.env`. The worker needs the same Shopify credentials and SQLite database as the web process. Shopify CLI supplies web-process credentials during development, but a separately launched worker also needs those values.
+2. Put the Shopify API key, secret, and app URL in the server environment or ignored `.env`. The worker needs the same Shopify credentials and `DATABASE_URL` as the web process. Shopify CLI supplies web-process credentials during development, but a separately launched worker also needs those values.
 3. Open **Veyro > AI settings** in Shopify Admin and save the store's OpenAI API key and vision-capable model ID. Merchant credentials are stored per shop; environment OpenAI credentials are no longer used. The catalog action may make one paid AI request per image needing analysis.
 4. Run `npm.cmd run dev` for the web app and `npm.cmd run worker` in another terminal. Open **Automation** to confirm the worker heartbeat. `npm.cmd run worker -- --once` processes at most one job for operational checks.
 5. Accept the app's new navigation scopes and synchronize the app webhook configuration through Shopify's development/deployment workflow. Local config validation/build does not deploy those subscriptions.
@@ -33,7 +33,7 @@ Deploy the app extension, then enable **Veyro missing schema** in the theme edit
 
 ## Persistence, recovery, and limits
 
-- This implementation uses the existing Prisma/SQLite database as a durable queue and backup store. It does **not** use the diagram's Redis/BullMQ/PostgreSQL stack. Run one worker against the same persistent database volume as the web app. Do not run replicas with independent SQLite files or deploy to ephemeral serverless storage. PostgreSQL/Redis migration is a separate scaling task.
+- This implementation uses the existing Prisma/PostgreSQL database as a durable queue and backup store. It does **not** use the diagram's Redis/BullMQ stack. Run one worker against the same `DATABASE_URL` as the web app. Redis migration is a separate scaling task.
 - Jobs are attempted up to three times, with 30/60-second backoff and a renewed two-minute lease. Failures are visible and can be retried. Cancelling a queued/failed job preserves completed work; cancelling a catalog job does not remove product jobs already queued by it.
 - A process crash may repeat an AI request. Review fingerprints and unique constraints prevent duplicate stored reviews. Shopify writes are reconciled where possible, but Shopify's APIs do not provide atomic compare-and-set across a local database and remote state. Simultaneous merchant edits between checks and mutation remain possible.
 - The optimizer verifies original-content hashes before replacement/restoration. It checks the resulting original bytes after upload. If Shopify transforms an upload or its outcome cannot be verified, the job stays unresolved instead of assuming success. Inspect the result and retry from Automation. Originals are retained; restoration is not claimed until verified.

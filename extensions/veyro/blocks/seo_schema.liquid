@@ -1,0 +1,20 @@
+{% if block.settings.product_schema and product != blank %}
+  <script type="application/json" data-veyro-schema="product">{{ product | structured_data | replace: '<', '\u003c' }}</script>
+{% endif %}
+{% if block.settings.organization_schema %}
+  <script type="application/json" data-veyro-schema="organization">
+    {"@context":"https://schema.org","@type":"Organization","name":{{ shop.name | json | replace: '<', '\u003c' }},"url":{{ shop.url | json }}}
+  </script>
+{% endif %}
+{% schema %}
+{
+  "name": "Veyro missing schema",
+  "target": "head",
+  "javascript": "veyro-schema.js",
+  "settings": [
+    { "type": "paragraph", "content": "Adds JSON-LD after checking the page for existing Product/ProductGroup and Organization markup. Enable only the types missing from your theme. Check the rendered page with Google's Rich Results Test after saving." },
+    { "type": "checkbox", "id": "product_schema", "label": "Add missing product schema", "default": false },
+    { "type": "checkbox", "id": "organization_schema", "label": "Add missing organization schema", "default": false }
+  ]
+}
+{% endschema %}

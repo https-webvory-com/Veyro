@@ -1,0 +1,198 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Note that some adapters may set a maximum length for the String type by default, please ensure your strings are long
+// enough when changing adapters.
+// See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
+datasource db {
+  provider = "sqlite"
+  url      = "file:dev.sqlite"
+}
+
+model Session {
+  id            String    @id
+  shop          String
+  state         String
+  isOnline      Boolean   @default(false)
+  scope         String?
+  expires       DateTime?
+  accessToken   String
+  userId        BigInt?
+  firstName     String?
+  lastName      String?
+  email         String?
+  accountOwner  Boolean   @default(false)
+  locale        String?
+  collaborator  Boolean?  @default(false)
+  emailVerified Boolean?  @default(false)
+  refreshToken        String?
+  refreshTokenExpires DateTime?
+}
+
+model AiConnection {
+  shop String @id
+  encryptedKey String
+  model String
+  updatedAt DateTime @updatedAt
+}
+
+model ImageSettings {
+  shop                String @id
+  altTemplate         String @default("[Category] [Product Title] [Color]")
+  confidenceThreshold Int    @default(95)
+  autoProcess         Boolean @default(false)
+  autoApprove         Boolean @default(false)
+  autoAssign          Boolean @default(false)
+}
+
+model ImageReview {
+  id             String   @id @default(cuid())
+  shop           String
+  productId      String
+  productTitle   String
+  mediaId        String
+  imageUrl       String
+  originalAlt    String
+  generatedAlt   String
+  detectedColor  String
+  matchedColor   String?
+  confidence     Int
+  status         String   @default("pending")
+  error          String?
+  sourceFingerprint String?
+  variantStatus  String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([shop, status, createdAt])
+  @@unique([shop, mediaId])
+}
+
+model WorkJob {
+  id          String   @id @default(cuid())
+  shop        String
+  kind        String
+  productId   String?
+  dedupeKey   String?  @unique
+  payload     String   @default("{}")
+  status      String   @default("queued")
+  attempts    Int      @default(0)
+  runAt       DateTime @default(now())
+  leaseToken  String?
+  lockedUntil DateTime?
+  error       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status, runAt])
+  @@index([shop, createdAt])
+}
+
+model WorkerHeartbeat {
+  id         String   @id
+  lastSeenAt DateTime @default(now())
+  status     String
+}
+
+model ImageChange {
+  id          String @id @default(cuid())
+  shop        String
+  mediaId     String
+  previousAlt String
+  appliedAlt  String
+  source      String
+  createdAt   DateTime @default(now())
+  @@index([shop, createdAt])
+}
+
+model SiteScan {
+  id        String @id @default(cuid())
+  shop      String
+  url       String
+  status    String @default("queued")
+  report    String?
+  error     String?
+  createdAt DateTime @default(now())
+  @@index([shop, createdAt])
+}
+
+model ImageOptimization {
+  id              String @id @default(cuid())
+  shop            String
+  mediaId         String
+  activeMediaId   String?
+  status          String @default("queued")
+  quality         Int
+  maxWidth        Int
+  originalBytes   Int?
+  optimizedBytes  Int?
+  width           Int?
+  height          Int?
+  mimeType        String?
+  originalData    Bytes?
+  optimizedData   Bytes?
+  originalHash    String?
+  appliedHash     String?
+  sourceUrl       String?
+  error           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@unique([shop, activeMediaId])
+  @@index([shop, createdAt])
+}
+
+model IntegrationReport {
+  id        String @id @default(cuid())
+  shop      String
+  kind      String
+  report    String?
+  error     String?
+  updatedAt DateTime @updatedAt
+  @@unique([shop, kind])
+}
+
+model SeoDraft {
+  id                  String   @id @default(cuid())
+  shop                String
+  productId           String
+  activeProductId     String?
+  productTitle        String
+  handle              String
+  originalTitle       String
+  originalDescription String
+  title               String
+  description         String
+  status              String   @default("pending")
+  error               String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([shop, activeProductId])
+  @@index([shop, createdAt])
+}
+
+model Video {
+  id               String   @id @default(cuid())
+  shop             String
+  productId        String
+  productHandle    String
+  videoId          String
+  url              String
+  thumbnailUrl     String?
+  duration         Int?
+  width            Int?
+  height           Int?
+  position         Int?
+  indexable        Boolean  @default(true)
+  schemaGenerated  Boolean  @default(false)
+  sitemapIncluded  Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([shop, videoId])
+  @@index([shop, createdAt])
+}

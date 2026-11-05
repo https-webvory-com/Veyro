@@ -1,4 +1,4 @@
-﻿import { useLoaderData } from "react-router";
+import { useLoaderData } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { authenticate } from "../shopify.server";
 import { getGtmIntegration, listGtmContainers } from "../services/gtm.server";
@@ -6,7 +6,7 @@ import { getGtmIntegration, listGtmContainers } from "../services/gtm.server";
 export const loader = async ({ request }) => {
   const { session } = await authenticate.admin(request);
   const integration = await getGtmIntegration(session.shop);
-  const containers = await listGtmContainers(session.shop);
+  const containers = await listGtmContainers();
   return { integration, containers };
 };
 
@@ -21,6 +21,7 @@ export default function GtmPage() {
         </s-badge>
       </s-section>
       <s-section heading="Containers">
+        {containers.length === 0 && <s-paragraph>Container details are not available yet.</s-paragraph>}
         {containers.map((c) => (
           <div key={c.id}>
             <strong>{c.name}</strong> ({c.id}) — {c.status}

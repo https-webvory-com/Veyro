@@ -1,12 +1,14 @@
 import { useLoaderData } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { authenticate } from "../shopify.server";
+import { GoogleConnections } from "../components/GoogleConnections";
 import { getTrackingDashboard } from "../services/tracking.server";
+import { isGoogleConfigured } from "../services/google-oauth.server";
 
 export const loader = async ({ request }) => {
   const { session } = await authenticate.admin(request);
   const data = await getTrackingDashboard(session.shop);
-  return data;
+  return { ...data, googleConfigured: isGoogleConfigured() };
 };
 
 export default function TrackingDashboard() {
@@ -15,11 +17,15 @@ export default function TrackingDashboard() {
   return (
     <s-page heading="Tracking Intelligence">
       <s-section heading="Connection Status">
-        <s-stack direction="inline" gap="base">
-          <s-badge tone="success">Shopify</s-badge>
-          <s-badge tone={data.connections.ga4 ? "success" : "critical"}>GA4</s-badge>
-          <s-badge tone={data.connections.googleAds ? "success" : "critical"}>Google Ads</s-badge>
-          <s-badge tone={data.connections.gtm ? "success" : "critical"}>GTM</s-badge>
+        <s-stack direction="block" gap="base">
+          <s-stack direction="inline" gap="small-200" alignItems="center">
+            <strong>Shopify</strong>
+            <s-badge tone="success">Connected</s-badge>
+          </s-stack>
+          <GoogleConnections
+            connected={{ ga4: data.connections.ga4, ads: data.connections.googleAds, gtm: data.connections.gtm }}
+            configured={data.googleConfigured}
+          />
         </s-stack>
       </s-section>
 

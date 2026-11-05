@@ -1,65 +1,63 @@
-﻿import { useLoaderData, Form } from "react-router";
+﻿import { useLoaderData, useSearchParams } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { authenticate } from "../shopify.server";
-import { getIntegrations, getGoogleAuthUrl } from "../services/google-oauth.server";
+import { GoogleConnections } from "../components/GoogleConnections";
+import {
+  disconnectGoogleIntegration,
+  getGoogleAuthUrl,
+  getIntegrations,
+  isGoogleConfigured,
+  isGooglePlatform,
+} from "../services/google-oauth.server";
 
 export const loader = async ({ request }) => {
   const { session } = await authenticate.admin(request);
   const integrations = await getIntegrations(session.shop);
-  return { integrations, shop: session.shop };
+  const isConnected = (platform) =>
+    integrations.some((i) => i.platform === platform && i.status === "connected");
+  return {
+    configured: isGoogleConfigured(),
+    connected: { ga4: isConnected("ga4"), ads: isConnected("google_ads"), gtm: isConnected("gtm") },
+  };
 };
 
 export const action = async ({ request }) => {
-  const { session } = await authenticate.admin(request);
+  const { session, redirect } = await authenticate.admin(request);
   const formData = await request.formData();
   const platform = formData.get("platform");
+  if (!isGooglePlatform(platform)) return { error: "Unknown Google service." };
 
-  if (!["ga4", "ads", "gtm"].includes(platform)) {
-    return { error: "Invalid platform" };
+  if (formData.get("intent") === "disconnect") {
+    await disconnectGoogleIntegration(session.shop, platform);
+    return { ok: true };
   }
 
-  const redirectUri = `${process.env.SHOPIFY_APP_URL}/app/tracking/google-callback`;
-  const url = getGoogleAuthUrl(platform, session.shop, redirectUri);
-  return { redirect: url };
+  if (!isGoogleConfigured()) return { error: "Google connections are not available yet." };
+  // Google's sign-in page refuses to load in a frame, so this must leave the Shopify admin iframe.
+  return redirect(getGoogleAuthUrl(platform, session.shop), { target: "_top" });
+};
+
+const RESULT_BANNERS = {
+  connected: { tone: "success", text: "Your Google account is connected." },
+  denied: { tone: "warning", text: "Google access was not granted, so nothing was connected." },
+  failed: { tone: "critical", text: "Google could not complete the connection. Please try again." },
 };
 
 export default function IntegrationsPage() {
-  const { integrations } = useLoaderData();
-
-  const status = (platform) =>
-    integrations.find((i) => i.platform === platform)?.status || "disconnected";
+  const { connected, configured } = useLoaderData();
+  const [searchParams] = useSearchParams();
+  const result = RESULT_BANNERS[searchParams.get("google")];
 
   return (
     <s-page heading="Integrations">
-      <s-section heading="Google Accounts">
-        <s-stack direction="block" gap="base">
-          <div>
-            <strong>Google Analytics 4</strong> — {status("ga4")}
-            <Form method="post">
-              <input type="hidden" name="platform" value="ga4" />
-              <button type="submit">Connect GA4</button>
-            </Form>
-          </div>
-          <div>
-            <strong>Google Ads</strong> — {status("google_ads")}
-            <Form method="post">
-              <input type="hidden" name="platform" value="ads" />
-              <button type="submit">Connect Google Ads</button>
-            </Form>
-          </div>
-          <div>
-            <strong>Google Tag Manager</strong> — {status("gtm")}
-            <Form method="post">
-              <input type="hidden" name="platform" value="gtm" />
-              <button type="submit">Connect GTM</button>
-            </Form>
-          </div>
-        </s-stack>
+      {result && <s-banner tone={result.tone}>{result.text}</s-banner>}
+      <s-section heading="Google accounts">
+        <GoogleConnections connected={connected} configured={configured} />
       </s-section>
-      <s-section slot="aside" heading="Setup">
+      <s-section slot="aside" heading="How connecting works">
         <s-paragraph>
-          Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in your .env file.
-          Create credentials in Google Cloud Console with the required scopes.
+          You will sign in with Google and approve access for each service. You can disconnect here at any
+          time, or remove Veyro from your Google Account permissions.
         </s-paragraph>
       </s-section>
     </s-page>

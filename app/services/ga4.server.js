@@ -1,8 +1,10 @@
 import db from "../db.server";
+import { INTEGRATION_PUBLIC_FIELDS } from "./google-oauth.server";
 
 export async function getGa4Integration(shop) {
   return db.integration.findUnique({
     where: { shop_platform: { shop, platform: "ga4" } },
+    select: INTEGRATION_PUBLIC_FIELDS,
   });
 }
 

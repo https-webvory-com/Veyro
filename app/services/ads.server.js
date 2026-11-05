@@ -1,8 +1,10 @@
 import db from "../db.server";
+import { INTEGRATION_PUBLIC_FIELDS } from "./google-oauth.server";
 
 export async function getAdsIntegration(shop) {
   return db.integration.findUnique({
     where: { shop_platform: { shop, platform: "google_ads" } },
+    select: INTEGRATION_PUBLIC_FIELDS,
   });
 }
 

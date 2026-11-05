@@ -10,6 +10,7 @@ export const action = async ({ request }) => {
   // If this webhook already ran, the session may have been deleted previously.
   await db.$transaction([
     db.aiConnection.deleteMany({ where: { shop } }),
+    db.integration.deleteMany({ where: { shop } }),
     db.integrationReport.deleteMany({ where: { shop } }),
     db.workJob.deleteMany({ where: { shop } }),
     db.siteScan.deleteMany({ where: { shop } }),

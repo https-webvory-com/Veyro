@@ -1,3 +1,4 @@
+import { useLoaderData } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { authenticate } from "../shopify.server";
 import { checkConversionLinker } from "../services/conversion-linker.server";

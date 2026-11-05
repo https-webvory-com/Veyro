@@ -9,7 +9,21 @@ export const loader = async ({ request }) => {
     throw redirect(`/app?${url.searchParams.toString()}`);
   }
 
+  // A full load inside Shopify admin's iframe should never show the public landing page.
+  if (request.headers.get("sec-fetch-dest") === "iframe") {
+    throw redirect(`/app${url.search}`);
+  }
+
   return { showForm: Boolean(login) };
+};
+
+// Admin's sidebar link can route to "/" without a page load, so no `shop` param reaches the loader.
+export const clientLoader = async ({ request, serverLoader }) => {
+  if (window.self !== window.top) {
+    throw redirect(`/app${new URL(request.url).search}`);
+  }
+
+  return serverLoader();
 };
 
 export default function App() {

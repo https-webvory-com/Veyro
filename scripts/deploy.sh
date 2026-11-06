@@ -25,10 +25,10 @@ main() {
 
   # The build needs dev dependencies even when the server sets NODE_ENV=production.
   npm ci --include=dev
-  npm run setup
+  npx prisma generate
   npm run build
+  npx prisma migrate deploy
   pm2 restart "$@"
-  echo "Deployed $commit"
 }
 
 # This script arrives on stdin, so commands must not read from it.

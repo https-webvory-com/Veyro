@@ -59,7 +59,7 @@ jobs:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
-          PM2_APPS: ${{ vars.PM2_APPS || 'veyro veyro-worker' }}
+          PM2_APPS: ${{ vars.PM2_APPS || 'veyro-app' }}
         run: |
           ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes \
             "$DEPLOY_USER@$DEPLOY_HOST" bash -s -- "'$DEPLOY_PATH'" "'$GITHUB_SHA'" $PM2_APPS < scripts/deploy.sh

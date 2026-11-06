@@ -215,10 +215,10 @@ export function classifyTouch(t, rules = []) {
   if (t.kx) return result("klaviyo_email", "high", "Klaviyo tracking parameter (_kx) on the landing page");
   if (t.referrerHost) {
     const match = REFERRER_RULES.find(([pattern]) => pattern.test(t.referrerHost));
-    return result(match ? match[1] : "referral", "medium", `Came from ${t.referrerHost} (no campaign tags)`);
+    return result(match ? match[1] : "referral", "medium", `Came from ${t.referrerHost}`);
   }
   if (t.fbclid) return result("facebook_organic", "medium", "Facebook click ID (fbclid) without ad campaign tags");
-  if (t.landingPage) return result("direct", "low", "No referring website or campaign tags (typed URL, bookmark, or an app that hides the source)");
+  if (t.landingPage) return result("direct", "low", "No referring website or campaign tags");
   return result("unknown", "none", "No visit information");
 }
 

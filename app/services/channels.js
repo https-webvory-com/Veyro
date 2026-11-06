@@ -102,11 +102,11 @@ export const MODELS = {
 export const DEFAULT_MODEL = "last_non_direct";
 
 export const STATUSES = {
-  attributed: { label: "Source found", tone: "success", description: "A click ID, campaign tags, your own rule, or Shopify's order source shows where the order came from." },
-  partially_attributed: { label: "Partly known", tone: "info", description: "The referring website is known, but there were no campaign tags, so the exact campaign can't be identified." },
-  unattributed: { label: "No source info", tone: "neutral", description: "The customer visited, but arrived directly (typed URL, bookmark, or an app that hides the source)." },
-  pending_enrichment: { label: "Waiting for Shopify", tone: "caution", description: "Shopify is still processing the visit data. Sync again in a few minutes." },
-  unknown: { label: "No visit data", tone: "warning", description: "Shopify recorded no visit for this order, for example orders created by another app or older orders." },
+  attributed: { label: "Source found", tone: "success", description: "An ad click ID, campaign tags, or your rule shows the source." },
+  partially_attributed: { label: "Partly known", tone: "info", description: "The referring website is known, but not the campaign." },
+  unattributed: { label: "No source info", tone: "neutral", description: "Arrived directly: typed URL, bookmark, or a private app." },
+  pending_enrichment: { label: "Waiting for Shopify", tone: "caution", description: "Shopify is still processing the visit. Sync again shortly." },
+  unknown: { label: "No visit data", tone: "warning", description: "No store visit recorded, such as orders created in the admin." },
 };
 
 export const CONFIDENCE = {

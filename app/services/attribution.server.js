@@ -493,7 +493,7 @@ export function resolveModel(requested, fallback) {
 }
 
 // Everything the Order sources page shows, computed in the database.
-export async function getAttributionReport(shop, { model: requested, group, status, take = 50 } = {}, db = prisma) {
+export async function getAttributionReport(shop, { model: requested, group, channel, status, take = 50 } = {}, db = prisma) {
   const { defaultModel } = await getAttributionSettings(shop, db);
   const model = resolveModel(requested, defaultModel);
   const column = MODEL_COLUMNS[model];
@@ -542,9 +542,16 @@ export async function getAttributionReport(shop, { model: requested, group, stat
     .sort((a, b) => b.orders - a.orders)
     .slice(0, 10);
 
-  const groupChannels = group && CHANNEL_GROUPS[group] ? Object.keys(CHANNELS).filter((k) => CHANNELS[k].group === group) : null;
+  // One row per source, busiest first; direct and unknown always last.
+  const rows = groupList
+    .flatMap((g) => g.channels.map((ch) => ({ ...ch, group: g.key, groupLabel: g.label, tone: g.tone, average: ch.orders ? ch.revenue / ch.orders : 0 })))
+    .sort((a, b) => (a.group === "direct") - (b.group === "direct") || b.orders - a.orders || b.revenue - a.revenue);
+
+  const channelFilter = channel && CHANNELS[channel] ? channel : null;
+  const groupChannels = !channelFilter && group && CHANNEL_GROUPS[group] ? Object.keys(CHANNELS).filter((k) => CHANNELS[k].group === group) : null;
   const orderWhere = {
     shop,
+    ...(channelFilter ? { [column]: channelFilter } : {}),
     ...(groupChannels ? { [column]: { in: groupChannels } } : {}),
     ...(status && STATUSES[status] ? { attributionStatus: status } : {}),
   };
@@ -563,7 +570,7 @@ export async function getAttributionReport(shop, { model: requested, group, stat
   return {
     model,
     defaultModel,
-    filters: { group: groupChannels ? group : null, status: status && STATUSES[status] ? status : null },
+    filters: { group: groupChannels ? group : null, channel: channelFilter, status: status && STATUSES[status] ? status : null },
     totals: {
       orders: totalOrders,
       revenue: totalRevenue,
@@ -573,6 +580,7 @@ export async function getAttributionReport(shop, { model: requested, group, stat
       paidShare: totalRevenue ? paidRevenue / totalRevenue : 0,
     },
     groups: groupList,
+    rows,
     quality,
     needsUpdate,
     campaigns,

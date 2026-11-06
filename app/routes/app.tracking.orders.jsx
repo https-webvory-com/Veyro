@@ -11,6 +11,7 @@ export const loader = async ({ request }) => {
   return getAttributionReport(session.shop, {
     model: url.searchParams.get("model"),
     group: url.searchParams.get("group"),
+    channel: url.searchParams.get("channel"),
     status: url.searchParams.get("status"),
   });
 };
@@ -132,41 +133,38 @@ export default function OrderSourcesPage() {
             <s-table>
               <s-table-header-row>
                 <s-table-header listSlot="primary">Source</s-table-header>
+                <s-table-header listSlot="secondary">Type</s-table-header>
                 <s-table-header format="numeric">Orders</s-table-header>
                 <s-table-header>Share of orders</s-table-header>
                 <s-table-header format="numeric">Sales</s-table-header>
+                <s-table-header format="numeric">Avg. order</s-table-header>
                 <s-table-header listSlot="inline">Details</s-table-header>
               </s-table-header-row>
               <s-table-body>
-                {report.groups.flatMap((group) => [
-                  <s-table-row key={group.key}>
+                {report.rows.map((row) => (
+                  <s-table-row key={row.key}>
+                    <s-table-cell><s-text type="strong">{row.label}</s-text></s-table-cell>
+                    <s-table-cell><s-badge tone={row.tone}>{row.groupLabel}</s-badge></s-table-cell>
+                    <s-table-cell>{row.orders.toLocaleString()}</s-table-cell>
+                    <s-table-cell><ShareBar share={row.share} /></s-table-cell>
+                    <s-table-cell>{money(row.revenue)}</s-table-cell>
+                    <s-table-cell>{money(row.average)}</s-table-cell>
                     <s-table-cell>
-                      <s-stack direction="block" gap="small-500">
-                        <s-text type="strong">{group.label}</s-text>
-                        <s-text color="subdued">{group.description}</s-text>
-                      </s-stack>
-                    </s-table-cell>
-                    <s-table-cell><s-text type="strong">{group.orders}</s-text></s-table-cell>
-                    <s-table-cell><ShareBar share={group.share} /></s-table-cell>
-                    <s-table-cell><s-text type="strong">{money(group.revenue)}</s-text></s-table-cell>
-                    <s-table-cell>
-                      <s-button variant="tertiary" onClick={() => setParams({ group: group.key })} accessibilityLabel={`View ${group.label} orders`}>
+                      <s-button variant="tertiary" onClick={() => setParams({ channel: row.key, group: null })} accessibilityLabel={`View ${row.label} orders`}>
                         View orders
                       </s-button>
                     </s-table-cell>
-                  </s-table-row>,
-                  ...group.channels.map((channel) => (
-                    <s-table-row key={`${group.key}-${channel.key}`}>
-                      <s-table-cell>
-                        <div style={{ paddingInlineStart: "16px" }}>{channel.label}</div>
-                      </s-table-cell>
-                      <s-table-cell>{channel.orders}</s-table-cell>
-                      <s-table-cell><ShareBar share={channel.share} subtle /></s-table-cell>
-                      <s-table-cell>{money(channel.revenue)}</s-table-cell>
-                      <s-table-cell />
-                    </s-table-row>
-                  )),
-                ])}
+                  </s-table-row>
+                ))}
+                <s-table-row>
+                  <s-table-cell><s-text type="strong">Total</s-text></s-table-cell>
+                  <s-table-cell />
+                  <s-table-cell><s-text type="strong">{totals.orders.toLocaleString()}</s-text></s-table-cell>
+                  <s-table-cell><s-text type="strong">100%</s-text></s-table-cell>
+                  <s-table-cell><s-text type="strong">{money(totals.revenue)}</s-text></s-table-cell>
+                  <s-table-cell><s-text type="strong">{money(totals.orders ? totals.revenue / totals.orders : 0)}</s-text></s-table-cell>
+                  <s-table-cell />
+                </s-table-row>
               </s-table-body>
             </s-table>
           </s-section>
@@ -223,12 +221,13 @@ export default function OrderSourcesPage() {
 
           <s-section heading="Orders">
             <s-stack direction="block" gap="base">
-              {(report.filters.group || report.filters.status) && (
+              {(report.filters.group || report.filters.channel || report.filters.status) && (
                 <s-stack direction="inline" gap="small-200" alignItems="center">
                   <s-text color="subdued">Showing:</s-text>
                   {report.filters.group && <s-badge>{CHANNEL_GROUPS[report.filters.group].label}</s-badge>}
+                  {report.filters.channel && <s-badge>{channelInfo(report.filters.channel).label}</s-badge>}
                   {report.filters.status && <s-badge>{STATUSES[report.filters.status].label}</s-badge>}
-                  <s-button variant="tertiary" onClick={() => setParams({ group: null, status: null })}>
+                  <s-button variant="tertiary" onClick={() => setParams({ group: null, channel: null, status: null })}>
                     Show all orders
                   </s-button>
                 </s-stack>

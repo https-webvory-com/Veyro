@@ -29,7 +29,7 @@ export function StatTile({ label, value, detail, tone }) {
 }
 
 // A horizontal bar showing a share of the total, with the percentage beside it.
-export function ShareBar({ share, subtle = false }) {
+export function ShareBar({ share }) {
   const width = Math.max(0, Math.min(100, Math.round((share || 0) * 100)));
   return (
     <s-stack direction="inline" gap="small-200" alignItems="center">
@@ -37,9 +37,9 @@ export function ShareBar({ share, subtle = false }) {
         role="presentation"
         style={{ inlineSize: "96px", blockSize: "8px", borderRadius: "4px", background: "#e3e3e3", overflow: "hidden" }}
       >
-        <div style={{ inlineSize: `${width}%`, blockSize: "100%", borderRadius: "4px", background: subtle ? "#8a8a8a" : "#303030" }} />
+        <div style={{ inlineSize: `${width}%`, blockSize: "100%", borderRadius: "4px", background: "#303030" }} />
       </div>
-      <s-text color={subtle ? "subdued" : "base"}>{width}%</s-text>
+      <s-text>{width}%</s-text>
     </s-stack>
   );
 }

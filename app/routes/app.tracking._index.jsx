@@ -50,10 +50,24 @@ export default function TrackingDashboard() {
         </s-stack>
       </s-section>
 
+      <s-section heading="Orders by source">
+        {data.channels.length === 0 ? (
+          <s-paragraph>No orders yet. Open Order sources and select Sync orders.</s-paragraph>
+        ) : (
+          <s-stack direction="block" gap="small-200">
+            {data.channels.slice(0, 6).map((row) => (
+              <s-paragraph key={row.channel}>
+                {row.label}: {row.orders} order(s) ({Math.round(row.share * 100)}%)
+              </s-paragraph>
+            ))}
+          </s-stack>
+        )}
+      </s-section>
+
       <s-section heading="Actions">
         <s-stack direction="inline" gap="base">
           <s-link href="/app/tracking/integrations">Manage Integrations</s-link>
-          <s-link href="/app/tracking/orders">View Shopify Orders</s-link>
+          <s-link href="/app/tracking/orders">View order sources</s-link>
         </s-stack>
       </s-section>
     </s-page>

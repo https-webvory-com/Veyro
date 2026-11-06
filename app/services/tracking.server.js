@@ -1,11 +1,13 @@
 import db from "../db.server";
 import { calculateHealthScore } from "./health.server";
+import { getChannelBreakdown } from "./attribution.server";
 
 export async function getTrackingDashboard(shop) {
-  const [orders, integrations, health] = await Promise.all([
+  const [orders, integrations, health, channels] = await Promise.all([
     db.shopifyOrder.count({ where: { shop } }),
     db.integration.findMany({ where: { shop } }),
     calculateHealthScore(shop),
+    getChannelBreakdown(shop),
   ]);
 
   const connected = Object.fromEntries(
@@ -14,6 +16,7 @@ export async function getTrackingDashboard(shop) {
 
   return {
     shopifyOrders: orders,
+    channels,
     healthScore: health.score,
     healthReasons: health.reasons,
     connections: {

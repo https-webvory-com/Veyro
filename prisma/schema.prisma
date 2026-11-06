@@ -240,8 +240,27 @@ model ShopifyOrder {
   updatedAt       DateTime @updatedAt
   raw             String?
 
+  // Where the order came from (last non-direct visit; see attribution.server.js).
+  channel         String?
+  firstChannel    String?
+  utmSource       String?
+  utmMedium       String?
+  utmCampaign     String?
+  utmTerm         String?
+  utmContent      String?
+  gclid           String?
+  gbraid          String?
+  wbraid          String?
+  msclkid         String?
+  fbclid          String?
+  landingSite     String?
+  referringSite   String?
+  sourceName      String?
+  attribution     String?
+
   @@unique([shop, orderId])
   @@index([shop, createdAt])
+  @@index([shop, channel])
 }
 
 model TrackingEvent {

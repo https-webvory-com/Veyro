@@ -257,10 +257,46 @@ model ShopifyOrder {
   referringSite   String?
   sourceName      String?
   attribution     String?
+  // Channel under each attribution model; `channel` mirrors the store's default model.
+  lastChannel          String?
+  lastNonDirectChannel String?
+  attributionStatus     String?
+  attributionConfidence String?
+  attributionEvidence   String?
+  utmId           String?
+  ttclid          String?
+  epik            String?
+  liFatId         String?
+  scCid           String?
 
   @@unique([shop, orderId])
   @@index([shop, createdAt])
   @@index([shop, channel])
+  @@index([shop, attributionStatus])
+}
+
+// Per-store attribution choices.
+model AttributionSettings {
+  shop         String   @id
+  defaultModel String   @default("last_non_direct")
+  updatedAt    DateTime @updatedAt
+}
+
+// Merchant-defined channel rules, checked in `position` order before the built-in rules.
+model ChannelRule {
+  id        String   @id @default(cuid())
+  shop      String
+  name      String
+  field     String
+  operator  String
+  value     String
+  channel   String
+  position  Int      @default(0)
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([shop, position])
 }
 
 model TrackingEvent {

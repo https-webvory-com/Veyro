@@ -20,6 +20,7 @@ export default function App() {
 		<s-link href="/app/optimize">Image optimizer</s-link>
 		<s-link href="/app/technical">Technical SEO</s-link>
 		<s-link href="/app/tracking">Tracking Intelligence</s-link>
+		<s-link href="/app/tracking/orders">Order sources</s-link>
 		<s-link href="/app/tracking/integrations">Integrations</s-link>
 		<s-link href="/app/settings">AI settings</s-link>
 		<s-link href="/app/tracking/ga4">GA4 Events</s-link>

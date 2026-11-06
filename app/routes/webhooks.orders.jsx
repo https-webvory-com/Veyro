@@ -1,17 +1,22 @@
 ﻿import { authenticate } from "../shopify.server";
 import db from "../db.server";
-import { attributionFromWebhook } from "../services/attribution.server";
+import { attributionFromWebhook, loadAttributionConfig } from "../services/attribution.server";
 
 export const action = async ({ request }) => {
   const { topic, shop, payload } = await authenticate.webhook(request);
 
   if (topic === "ORDERS_CREATE" || topic === "ORDERS_UPDATED" || topic === "ORDERS_PAID") {
     const order = payload;
-    const attribution = attributionFromWebhook(order, shop);
+    const attribution = attributionFromWebhook(order, shop, await loadAttributionConfig(shop));
     const where = { shop_orderId: { shop, orderId: String(order.id) } };
     const existing = await db.shopifyOrder.findUnique({ where, select: { attribution: true } });
     // A sync may already hold the full customer journey (first and last visit); keep that over the single webhook session.
-    const keepJourney = existing?.attribution && JSON.parse(existing.attribution).first;
+    let keepJourney = false;
+    try {
+      keepJourney = Boolean(existing?.attribution && JSON.parse(existing.attribution).first);
+    } catch {
+      keepJourney = false;
+    }
 
     await db.shopifyOrder.upsert({
       where,

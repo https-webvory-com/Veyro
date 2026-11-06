@@ -13,6 +13,8 @@ export const action = async ({ request }) => {
     db.integration.deleteMany({ where: { shop } }),
     db.googleCredential.deleteMany({ where: { shop } }),
     db.shopifyOrder.deleteMany({ where: { shop } }),
+    db.channelRule.deleteMany({ where: { shop } }),
+    db.attributionSettings.deleteMany({ where: { shop } }),
     db.trackingEvent.deleteMany({ where: { shop } }),
     db.trackingHealth.deleteMany({ where: { shop } }),
     db.auditIssue.deleteMany({ where: { shop } }),

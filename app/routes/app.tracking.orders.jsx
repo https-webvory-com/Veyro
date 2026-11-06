@@ -1,14 +1,17 @@
-﻿import { useFetcher, useLoaderData, useSearchParams } from "react-router";
+﻿import { useEffect, useRef } from "react";
+import { useFetcher, useLoaderData, useRevalidator, useSearchParams } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { authenticate } from "../shopify.server";
 import { getAttributionReport, reapplyAttribution, syncOrderAttribution } from "../services/attribution.server";
+import { getLatestImport, publicImport, startOrderImport } from "../services/order-import.server";
 import { CHANNEL_GROUPS, DATE_RANGES, MODELS, STATUSES, channelInfo } from "../services/channels";
 import { formatDate, formatMoney, percent, readFields, ShareBar, StatTile } from "../components/AttributionUi";
 
 export const loader = async ({ request }) => {
   const { session } = await authenticate.admin(request);
   const url = new URL(request.url);
-  return getAttributionReport(session.shop, {
+  const latestImport = publicImport(await getLatestImport(session.shop));
+  const report = await getAttributionReport(session.shop, {
     model: url.searchParams.get("model"),
     group: url.searchParams.get("group"),
     channel: url.searchParams.get("channel"),
@@ -17,12 +20,21 @@ export const loader = async ({ request }) => {
     q: url.searchParams.get("q"),
     page: url.searchParams.get("page"),
   });
+  return { ...report, latestImport };
 };
 
 export const action = async ({ request }) => {
   const { admin, session } = await authenticate.admin(request);
   const formData = await request.formData();
   const intent = formData.get("intent");
+  if (intent === "import") {
+    try {
+      return await startOrderImport({ admin, shop: session.shop });
+    } catch (error) {
+      const denied = /access denied|protected customer data|not approved/i.test(error.message);
+      return { error: denied ? "Shopify denied access to order data. Check Veyro's protected customer data access in the Partner Dashboard." : `The import couldn't start: ${error.message}` };
+    }
+  }
   if (intent === "reapply") {
     const count = await reapplyAttribution(session.shop);
     return { message: `Updated the sources of ${count} order${count === 1 ? "" : "s"}.` };
@@ -49,6 +61,28 @@ export default function OrderSourcesPage() {
   const money = (value) => formatMoney(value, report.currency);
   const { totals, filters } = report;
   const qualityRows = report.quality.filter((q) => q.orders > 0);
+
+  // Full-history import: poll while it runs, then reload the numbers once it finishes.
+  const poller = useFetcher();
+  const revalidator = useRevalidator();
+  // The poller's answer can be older than the loader's after a new import starts; use the newest.
+  const polled = poller.data?.import;
+  const loaded = report.latestImport;
+  const importState = polled && (!loaded || new Date(polled.startedAt) >= new Date(loaded.startedAt)) ? polled : loaded;
+  const importActive = ["running", "processing"].includes(importState?.status);
+  const wasActive = useRef(importActive);
+  useEffect(() => {
+    if (!importActive) return undefined;
+    const timer = setInterval(() => {
+      if (poller.state === "idle") poller.load("/app/tracking/order-import");
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [importActive, poller]);
+  useEffect(() => {
+    if (wasActive.current && !importActive) revalidator.revalidate();
+    wasActive.current = importActive;
+  }, [importActive, revalidator]);
+  const importing = busy && fetcher.formData?.get("intent") === "import";
 
   const setParams = (changes) => {
     const next = new URLSearchParams(searchParams);
@@ -86,6 +120,32 @@ export default function OrderSourcesPage() {
 
       {fetcher.data?.message && <s-banner tone="success">{fetcher.data.message}</s-banner>}
       {fetcher.data?.error && <s-banner tone="critical">{fetcher.data.error}</s-banner>}
+      {importActive && (
+        <s-banner tone="info" heading="Importing your order history">
+          {importState.status === "running"
+            ? `Shopify is preparing your orders${importState.objectCount ? ` (${importState.objectCount.toLocaleString()} so far)` : ""}. You can leave this page; the import keeps going.`
+            : `Saved ${importState.processed.toLocaleString()} of ${importState.objectCount.toLocaleString()} orders.`}
+        </s-banner>
+      )}
+      {importState?.status === "completed" && importState === polled && (
+        <s-banner tone="success" heading="Order history imported">
+          {`${importState.objectCount.toLocaleString()} orders checked. The numbers below now include your full history.`}
+        </s-banner>
+      )}
+      {importState?.status === "failed" && (
+        <s-banner tone="critical" heading="The order import stopped">
+          {importState.error}
+          <s-button slot="secondary-actions" onClick={() => send("import")} disabled={busy || undefined}>Try again</s-button>
+        </s-banner>
+      )}
+      {!importState && (
+        <s-banner tone="info" heading="Only your most recent orders are included">
+          Sync brings in the latest 250 orders. Import your full history to see where all past orders came from.
+          <s-button slot="secondary-actions" loading={importing || undefined} onClick={() => send("import")} disabled={busy || undefined}>
+            Import all orders
+          </s-button>
+        </s-banner>
+      )}
       {report.needsUpdate > 0 && !fetcher.data && (
         <s-banner tone="info" heading={`${plural(report.needsUpdate, "order")} can show more detail`}>
           <s-button slot="secondary-actions" onClick={() => send("reapply")} disabled={busy || undefined}>

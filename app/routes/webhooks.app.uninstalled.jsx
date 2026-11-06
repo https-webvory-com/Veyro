@@ -15,6 +15,7 @@ export const action = async ({ request }) => {
     db.shopifyOrder.deleteMany({ where: { shop } }),
     db.channelRule.deleteMany({ where: { shop } }),
     db.attributionSettings.deleteMany({ where: { shop } }),
+    db.orderImport.deleteMany({ where: { shop } }),
     db.trackingEvent.deleteMany({ where: { shop } }),
     db.trackingHealth.deleteMany({ where: { shop } }),
     db.auditIssue.deleteMany({ where: { shop } }),

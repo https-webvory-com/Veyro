@@ -282,6 +282,25 @@ model AttributionSettings {
   updatedAt    DateTime @updatedAt
 }
 
+// A full order-history import through a Shopify bulk operation. `processed` lets an
+// interrupted import resume where it stopped.
+model OrderImport {
+  id              String    @id @default(cuid())
+  shop            String
+  status          String    @default("running")
+  bulkOperationId String?
+  hosts           String?
+  objectCount     Int       @default(0)
+  processed       Int       @default(0)
+  url             String?
+  error           String?
+  startedAt       DateTime  @default(now())
+  finishedAt      DateTime?
+  updatedAt       DateTime  @updatedAt
+
+  @@index([shop, startedAt])
+}
+
 // Merchant-defined channel rules, checked in `position` order before the built-in rules.
 model ChannelRule {
   id        String   @id @default(cuid())

@@ -444,6 +444,34 @@ export const ORDERS_ATTRIBUTION_QUERY = `#graphql
 
 const money = (set) => parseFloat(set?.shopMoney?.amount || 0);
 
+// One Admin GraphQL order → the stored row. Shared by sync and the full-history import.
+export function orderRecord(order, ownHosts, config) {
+  const fields = attributionFromGraphql(order, ownHosts, config);
+  return {
+    orderId: order.id.split("/").pop(),
+    createdAt: new Date(order.createdAt),
+    data: {
+      orderNumber: order.name?.replace(/^#/, "") || null,
+      totalPrice: money(order.currentTotalPriceSet),
+      subtotalPrice: money(order.currentSubtotalPriceSet),
+      totalTax: money(order.currentTotalTaxSet),
+      totalShipping: money(order.totalShippingPriceSet),
+      currency: order.currentTotalPriceSet?.shopMoney?.currencyCode || "USD",
+      financialStatus: order.displayFinancialStatus?.toLowerCase() || null,
+      fulfillmentStatus: order.displayFulfillmentStatus?.toLowerCase() || null,
+      ...fields,
+    },
+  };
+}
+
+export async function saveOrderRecord(shop, record, db = prisma) {
+  return db.shopifyOrder.upsert({
+    where: { shop_orderId: { shop, orderId: record.orderId } },
+    create: { shop, orderId: record.orderId, createdAt: record.createdAt, ...record.data },
+    update: record.data,
+  });
+}
+
 // Pulls recent orders with their customer journey and stores the attribution.
 export async function syncOrderAttribution({ admin, shop, limit = 250 }, db = prisma) {
   const config = await loadAttributionConfig(shop, db);
@@ -456,24 +484,9 @@ export async function syncOrderAttribution({ admin, shop, limit = 250 }, db = pr
     const ownHosts = [shop, data.shop?.primaryDomain?.host].filter(Boolean);
 
     for (const order of data.orders.nodes) {
-      const orderId = order.id.split("/").pop();
-      const fields = attributionFromGraphql(order, ownHosts, config);
-      if (fields.attributionStatus === "pending_enrichment") pending.push(order.name);
-      const base = {
-        orderNumber: order.name?.replace(/^#/, "") || null,
-        totalPrice: money(order.currentTotalPriceSet),
-        subtotalPrice: money(order.currentSubtotalPriceSet),
-        totalTax: money(order.currentTotalTaxSet),
-        totalShipping: money(order.totalShippingPriceSet),
-        currency: order.currentTotalPriceSet?.shopMoney?.currencyCode || "USD",
-        financialStatus: order.displayFinancialStatus?.toLowerCase() || null,
-        fulfillmentStatus: order.displayFulfillmentStatus?.toLowerCase() || null,
-      };
-      await db.shopifyOrder.upsert({
-        where: { shop_orderId: { shop, orderId } },
-        create: { shop, orderId, createdAt: new Date(order.createdAt), ...base, ...fields },
-        update: { ...base, ...fields },
-      });
+      const record = orderRecord(order, ownHosts, config);
+      if (record.data.attributionStatus === "pending_enrichment") pending.push(order.name);
+      await saveOrderRecord(shop, record, db);
       synced += 1;
     }
 

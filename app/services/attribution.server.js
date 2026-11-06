@@ -1,6 +1,6 @@
 import prisma from "../db.server.js";
 import { graphql } from "./shopify-api.server.js";
-import { CHANNELS, CHANNEL_GROUPS, DEFAULT_MODEL, MODELS, RULE_FIELDS, RULE_OPERATORS, STATUSES, channelInfo } from "./channels.js";
+import { CHANNELS, CHANNEL_GROUPS, DATE_RANGES, DEFAULT_MODEL, MODELS, RULE_FIELDS, RULE_OPERATORS, STATUSES, channelInfo } from "./channels.js";
 
 export { CHANNELS };
 
@@ -493,7 +493,19 @@ export function resolveModel(requested, fallback) {
 }
 
 // Everything the Order sources page shows, computed in the database.
-export async function getAttributionReport(shop, { model: requested, group, channel, status, take = 50 } = {}, db = prisma) {
+export function rangeStart(range, now = new Date()) {
+  const start = new Date(now);
+  start.setHours(0, 0, 0, 0);
+  if (range === "today") return start;
+  if (range === "last_7_days") return new Date(start.getTime() - 6 * 86400000);
+  if (range === "last_30_days") return new Date(start.getTime() - 29 * 86400000);
+  if (range === "this_month") return new Date(start.getFullYear(), start.getMonth(), 1);
+  return null;
+}
+
+export const ORDERS_PER_PAGE = 25;
+
+export async function getAttributionReport(shop, { model: requested, group, channel, status, range, q, page, take = ORDERS_PER_PAGE } = {}, db = prisma) {
   const { defaultModel } = await getAttributionSettings(shop, db);
   const model = resolveModel(requested, defaultModel);
   const column = MODEL_COLUMNS[model];
@@ -555,9 +567,18 @@ export async function getAttributionReport(shop, { model: requested, group, chan
     ...(groupChannels ? { [column]: { in: groupChannels } } : {}),
     ...(status && STATUSES[status] ? { attributionStatus: status } : {}),
   };
+  const since = DATE_RANGES[range] ? rangeStart(range) : null;
+  if (since) orderWhere.createdAt = { gte: since };
+  const search = String(q || "").replace(/^#/, "").trim().slice(0, 40);
+  if (search) orderWhere.OR = [{ orderNumber: { contains: search } }, { orderId: { contains: search } }];
+
+  const matching = await db.shopifyOrder.count({ where: orderWhere });
+  const pages = Math.max(1, Math.ceil(matching / take));
+  const pageNumber = Math.min(Math.max(1, parseInt(page, 10) || 1), pages);
   const orders = await db.shopifyOrder.findMany({
     where: orderWhere,
     orderBy: { createdAt: "desc" },
+    skip: (pageNumber - 1) * take,
     take,
     select: {
       id: true, orderId: true, orderNumber: true, createdAt: true, totalPrice: true, currency: true,
@@ -570,7 +591,14 @@ export async function getAttributionReport(shop, { model: requested, group, chan
   return {
     model,
     defaultModel,
-    filters: { group: groupChannels ? group : null, channel: channelFilter, status: status && STATUSES[status] ? status : null },
+    filters: {
+      group: groupChannels ? group : null,
+      channel: channelFilter,
+      status: status && STATUSES[status] ? status : null,
+      range: since ? range : null,
+      q: search || null,
+    },
+    pagination: { page: pageNumber, pages, matching, perPage: take },
     totals: {
       orders: totalOrders,
       revenue: totalRevenue,

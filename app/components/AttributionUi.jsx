@@ -15,6 +15,16 @@ export function formatDate(value) {
 
 export const percent = (share) => `${Math.round((share || 0) * 100)}%`;
 
+// Polaris fields take part in forms; reading the element too covers browsers where they don't.
+export function readFields(form, names) {
+  const data = new FormData(form);
+  return Object.fromEntries(names.map((name) => {
+    const element = form.querySelector(`[name="${name}"]`);
+    const value = data.get(name) ?? element?.value ?? element?.values?.[0] ?? "";
+    return [name, String(value)];
+  }));
+}
+
 // One headline number with a short explanation underneath.
 export function StatTile({ label, value, detail, tone }) {
   return (

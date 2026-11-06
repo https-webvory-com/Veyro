@@ -11,6 +11,7 @@ import {
   updateChannelRule,
 } from "../services/attribution.server";
 import { CHANNEL_GROUPS, CHANNELS, MODELS, RULE_FIELDS, RULE_OPERATORS, channelInfo } from "../services/channels";
+import { readFields } from "../components/AttributionUi";
 
 export const loader = async ({ request }) => {
   const { session } = await authenticate.admin(request);
@@ -37,16 +38,6 @@ export const action = async ({ request }) => {
       return { error: "Unknown action." };
   }
 };
-
-// Polaris fields take part in forms; reading the element too covers browsers where they don't.
-function readFields(form, names) {
-  const data = new FormData(form);
-  return Object.fromEntries(names.map((name) => {
-    const element = form.querySelector(`[name="${name}"]`);
-    const value = data.get(name) ?? element?.value ?? element?.values?.[0] ?? "";
-    return [name, String(value)];
-  }));
-}
 
 const CHANNEL_OPTIONS = Object.entries(CHANNEL_GROUPS).map(([group, info]) => ({
   group,

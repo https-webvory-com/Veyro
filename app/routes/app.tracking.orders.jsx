@@ -2,8 +2,8 @@
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { authenticate } from "../shopify.server";
 import { getAttributionReport, reapplyAttribution, syncOrderAttribution } from "../services/attribution.server";
-import { CHANNEL_GROUPS, MODELS, STATUSES, channelInfo } from "../services/channels";
-import { formatDate, formatMoney, percent, ShareBar, StatTile } from "../components/AttributionUi";
+import { CHANNEL_GROUPS, DATE_RANGES, MODELS, STATUSES, channelInfo } from "../services/channels";
+import { formatDate, formatMoney, percent, readFields, ShareBar, StatTile } from "../components/AttributionUi";
 
 export const loader = async ({ request }) => {
   const { session } = await authenticate.admin(request);
@@ -13,6 +13,9 @@ export const loader = async ({ request }) => {
     group: url.searchParams.get("group"),
     channel: url.searchParams.get("channel"),
     status: url.searchParams.get("status"),
+    range: url.searchParams.get("range"),
+    q: url.searchParams.get("q"),
+    page: url.searchParams.get("page"),
   });
 };
 
@@ -53,13 +56,24 @@ export default function OrderSourcesPage() {
       if (value) next.set(key, value);
       else next.delete(key);
     }
+    // Any new filter starts again from the first page.
+    if (!("page" in changes)) next.delete("page");
     setSearchParams(next, { preventScrollReset: true });
   };
   const send = (intent) => fetcher.submit({ intent }, { method: "post" });
-  const filterLabel = filters.channel ? channelInfo(filters.channel).label
-    : filters.group ? CHANNEL_GROUPS[filters.group].label
-    : filters.status ? STATUSES[filters.status].label
-    : null;
+  const filtered = Boolean(filters.channel || filters.group || filters.status || filters.range || filters.q);
+  const applyFilters = (event) => {
+    event.preventDefault();
+    const { channel, status, range, q } = readFields(event.currentTarget, ["channel", "status", "range", "q"]);
+    setParams({ channel, status, range, q, group: null });
+  };
+  const clearFilters = () => setParams({ channel: null, status: null, range: null, q: null, group: null });
+  const { page, pages, matching, perPage } = report.pagination;
+  const firstShown = matching ? (page - 1) * perPage + 1 : 0;
+  const lastShown = Math.min(page * perPage, matching);
+  // Offer only sources that have orders, plus the active one.
+  const sourceOptions = report.rows.map((row) => [row.key, row.label]);
+  if (filters.channel && !sourceOptions.some(([key]) => key === filters.channel)) sourceOptions.push([filters.channel, channelInfo(filters.channel).label]);
 
   return (
     <s-page heading="Order sources" inlineSize="large">
@@ -198,14 +212,36 @@ export default function OrderSourcesPage() {
             </s-section>
           )}
 
-          <s-section heading={filterLabel ? `Orders: ${filterLabel}` : "Recent orders"}>
-            {filterLabel && (
-              <s-button slot="secondary-actions" variant="tertiary" onClick={() => setParams({ group: null, channel: null, status: null })}>
-                Show all
-              </s-button>
-            )}
+          <s-section heading="Orders">
+            <form onSubmit={applyFilters} key={searchParams.toString()}>
+              <s-stack direction="block" gap="base">
+                <s-grid gridTemplateColumns="repeat(auto-fit, minmax(170px, 1fr))" gap="base" alignItems="end">
+                  <s-search-field label="Order number" name="q" placeholder="Search, e.g. 1004" value={filters.q || ""} />
+                  <s-select label="Source" name="channel" value={filters.channel || ""}>
+                    <s-option value="">All sources</s-option>
+                    {sourceOptions.map(([key, label]) => <s-option key={key} value={key}>{label}</s-option>)}
+                  </s-select>
+                  <s-select label="Status" name="status" value={filters.status || ""}>
+                    <s-option value="">All statuses</s-option>
+                    {Object.entries(STATUSES).map(([key, s]) => <s-option key={key} value={key}>{s.label}</s-option>)}
+                  </s-select>
+                  <s-select label="Date" name="range" value={filters.range || ""}>
+                    <s-option value="">All time</s-option>
+                    {Object.entries(DATE_RANGES).map(([key, label]) => <s-option key={key} value={key}>{label}</s-option>)}
+                  </s-select>
+                </s-grid>
+                <s-stack direction="inline" gap="small-200" alignItems="center">
+                  <s-button type="submit" variant="primary">Apply filters</s-button>
+                  {filtered && <s-button variant="tertiary" onClick={clearFilters}>Clear filters</s-button>}
+                  {filters.group && <s-badge>{CHANNEL_GROUPS[filters.group].label}</s-badge>}
+                </s-stack>
+              </s-stack>
+            </form>
+            <s-divider />
             {report.orders.length === 0 ? (
-              <s-text color="subdued">No orders match this filter.</s-text>
+              <s-box padding="base">
+                <s-text color="subdued">{filtered ? "No orders match these filters." : "No orders yet."}</s-text>
+              </s-box>
             ) : (
               <s-table>
                 <s-table-header-row>
@@ -238,6 +274,20 @@ export default function OrderSourcesPage() {
                   })}
                 </s-table-body>
               </s-table>
+            )}
+            {matching > 0 && (
+              <s-stack direction="inline" gap="base" alignItems="center" justifyContent="space-between">
+                <s-text color="subdued">
+                  Showing {firstShown.toLocaleString()}–{lastShown.toLocaleString()} of {matching.toLocaleString()} order{matching === 1 ? "" : "s"}
+                </s-text>
+                {pages > 1 && (
+                  <s-stack direction="inline" gap="small-200" alignItems="center">
+                    <s-button disabled={page <= 1 || undefined} onClick={() => setParams({ page: page - 1 > 1 ? String(page - 1) : null })}>Previous</s-button>
+                    <s-text color="subdued">Page {page} of {pages}</s-text>
+                    <s-button disabled={page >= pages || undefined} onClick={() => setParams({ page: String(page + 1) })}>Next</s-button>
+                  </s-stack>
+                )}
+              </s-stack>
             )}
           </s-section>
         </>

@@ -109,6 +109,13 @@ export const STATUSES = {
   unknown: { label: "No visit data", tone: "warning", description: "No store visit recorded, such as orders created in the admin." },
 };
 
+export const DATE_RANGES = {
+  today: "Today",
+  last_7_days: "Last 7 days",
+  last_30_days: "Last 30 days",
+  this_month: "This month",
+};
+
 export const CONFIDENCE = {
   high: "High",
   medium: "Medium",

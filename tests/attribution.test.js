@@ -8,6 +8,7 @@ import {
   classifyTouch,
   computeAttribution,
   parseTouch,
+  rangeStart,
   reapplyAttribution,
   setDefaultModel,
   storedRaw,
@@ -268,4 +269,13 @@ test("sync pages through orders and stores attribution", async () => {
   assert.equal(db.stored.get("1").channel, "google_ads");
   assert.equal(db.stored.get("1").currency, "EUR");
   assert.equal(db.stored.get("2").attributionStatus, "pending_enrichment");
+});
+
+test("date ranges start at midnight on the right day", () => {
+  const now = new Date(2026, 10, 18, 15, 30);
+  assert.equal(rangeStart("today", now).getTime(), new Date(2026, 10, 18).getTime());
+  assert.equal(rangeStart("last_7_days", now).getTime(), new Date(2026, 10, 12).getTime());
+  assert.equal(rangeStart("last_30_days", now).getTime(), new Date(2026, 9, 20).getTime());
+  assert.equal(rangeStart("this_month", now).getTime(), new Date(2026, 10, 1).getTime());
+  assert.equal(rangeStart("all", now), null);
 });
